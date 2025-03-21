@@ -51,3 +51,16 @@ def nared_db(category_name):
             slika TEXT
         )
     """)
+    conn.commit()
+    conn.close()
+
+    return db_name
+
+def extract_price(price_text):
+    price_text = price_text.replace(",", ".").replace(".", ".")
+    numbers = re.findall(r"\d+\.\d+", price_text)
+    if not numbers:
+        return None
+    
+    price = float(numbers[0])
+    return price
