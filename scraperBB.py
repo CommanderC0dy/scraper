@@ -64,3 +64,33 @@ def extract_price(price_text):
     
     price = float(numbers[0])
     return price
+
+def scrape_page(session, category_url, page):
+    url = f"{category_url}?page={page}"
+    response = session.get(url)
+    if response.status_code != 200:
+        print(f"nismo najdl paga za {page} v kategoriji {category_url}")
+        return []
+    soup = BeautifulSoup(response.text, 'html.parser')
+
+    products = soup.find_all("article", class_ = "cp")
+
+    data = []
+    for product in products:
+        name_tag = product.find("h2", class_ = "cp-title")
+        price_tag_current = product.find("div", class_ = "cp-current-price")
+        price_tag_old = product.find("div", class_ = "cp-old-price")
+
+        if name_tag and price_tag_current:
+            name = name_tag.get_text(strip=True)
+            current_price = extract_price(price_tag_current.get_text(strip=True))
+
+            old_price = None
+            if price_tag_old:
+                old_price = extract_price(price_tag_old.get_text(strip=True))
+
+            link_tag = product.find("a", href=True)
+            if link_tag:
+                link = "https://www.bigbang.si" + link_tag["href"]
+                data.append(name, current_price, old_price, link)
+    return data
