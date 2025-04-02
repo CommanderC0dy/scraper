@@ -40,17 +40,14 @@ CATEGORIES = [
     "https://www.bigbang.si/izdelki/racunalnistvo/racunalniska-oprema/omrezna-oprema/"
 ]
 
-def sanitize_category_name(name):
-    """Sanitizes the category name for database file naming."""
+def pocistmokategorijo(name):
     return name.replace(" ", "_").replace("/", "_").replace(":", "_").replace("&", "_")
 
-def extract_category_name(url):
-    """Extracts a readable category name from the URL."""
+def Djmiimekategorije(url):
     path_segments = urlparse(url).path.strip("/").split("/")
-    return sanitize_category_name(path_segments[-1]) if path_segments else "Unknown"
+    return pocistmokategorijo(path_segments[-1]) if path_segments else "Unknown"
 
-def create_db():
-    """Creates a single database for all categories."""
+def naredDB():
     if not os.path.exists(DB_FOLDER):
         os.makedirs(DB_FOLDER)
 
@@ -68,14 +65,12 @@ def create_db():
     conn.close()
     return db_path
 
-def extract_price(price_text):
-    """Extracts and converts price text to a float."""
+def ekstractamoceno(price_text):
     price_text = price_text.replace(".", "").replace(",", ".")
     numbers = re.findall(r'\d+\.\d+|\d+', price_text)
     return float(numbers[0]) if numbers else None
 
-def send_discord_message(name, old_price, new_price, drop_percent, link):
-    """Sends a price drop alert to Discord."""
+def disc(name, old_price, new_price, drop_percent, link):
     message = {
         "content": f"🚨 **PRICE DROP ALERT** 🚨\n\n**{name}** has dropped in price!\n\n"
                    f"Old Price: €{old_price:.2f}\nNew Price: €{new_price:.2f}\n"
@@ -83,12 +78,11 @@ def send_discord_message(name, old_price, new_price, drop_percent, link):
     }
     response = requests.post(DISCORD_WEBHOOK_URL, json=message)
     if response.status_code == 204:
-        print(f"✅ Price drop alert sent for {name}")
+        print(f"evo, je poslal {name}")
     else:
-        print(f"❌ Failed to send alert for {name} - {response.status_code}")
+        print(f"neki je slo v kurac {name} - {response.status_code}")
 
-def check_price_drop(cursor, name, new_price, link):
-    """Checks for price drops and triggers Discord alerts if needed."""
+def alijemogoceprosimpricedrop(cursor, name, new_price, link):
     cursor.execute("SELECT price FROM products WHERE link = ?", (link,))
     row = cursor.fetchone()
     if row:
@@ -96,18 +90,17 @@ def check_price_drop(cursor, name, new_price, link):
         if old_price and old_price > new_price:
             drop_percent = ((old_price - new_price) / old_price) * 100
             if drop_percent >= 30:
-                print(f"📉 **PRICE DROP DETECTED**: {name} ({drop_percent:.1f}% OFF)")
-                send_discord_message(name, old_price, new_price, drop_percent, link)
+                print(f"prosm deli, ce to pise je price drop: {name} ({drop_percent:.1f}%)")
+                disc(name, old_price, new_price, drop_percent, link)
 
-def scrape_page(session, category_url, page, category_name):
-    """Scrapes a single page of products from the category."""
+def prosimDeli(session, category_url, page, category_name):
     print(f"🔄 Scraping {category_name} - Page {page}")
 
     url = f"{category_url}?page={page}"
     response = session.get(url)
     
     if response.status_code != 200:
-        print(f"❌ Failed to retrieve page {page} for {category_url}")
+        print(f"Nek error je bil na strani {page} for {category_url}")
         return []
 
     soup = BeautifulSoup(response.text, "html.parser")
@@ -121,7 +114,7 @@ def scrape_page(session, category_url, page, category_name):
 
         if name_tag and price_tag and link_tag:
             name = name_tag.get_text(strip=True)
-            price = extract_price(price_tag.get_text(strip=True))
+            price = ekstractamoceno(price_tag.get_text(strip=True))
             link = "https://www.bigbang.si" + link_tag["href"]
 
             if price is not None:
@@ -130,12 +123,11 @@ def scrape_page(session, category_url, page, category_name):
     return data
 
 def save_to_db(data, db_path, category):
-    """Saves product data to the SQLite database."""
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
 
     for name, price, link in data:
-        check_price_drop(cursor, name, price, link)
+        alijemogoceprosimpricedrop(cursor, name, price, link)
         cursor.execute('''INSERT INTO products (name, price, link, category) 
                           VALUES (?, ?, ?, ?) 
                           ON CONFLICT(link) DO UPDATE SET price = excluded.price, last_updated = CURRENT_TIMESTAMP''',
@@ -145,27 +137,25 @@ def save_to_db(data, db_path, category):
     conn.close()
 
 def scrape_category(session, category_url):
-    """Scrapes all available pages of a category."""
 
-    category_name = extract_category_name(category_url)
-    db_path = create_db()
+    category_name = Djmiimekategorije(category_url)
+    db_path = naredDB()
 
-    print(f"🔍 Scraping category: {category_name}...")
+    print(f"skrapamo: {category_name}...")
 
     page = 1
     while True:
-        data = scrape_page(session, category_url, page, category_name)
+        data = prosimDeli(session, category_url, page, category_name)
         if not data:
-            print(f"✅ No more products found in {category_name}. Stopping.")
+            print(f"nc jih ni vec v  {category_name}")
             break
         
         save_to_db(data, db_path, category_name)
         page += 1 
 
-    print(f"✅ Finished scraping: {category_name}")
+    print(f"konc {category_name}")
 
-def scrape_all_categories():
-    """Scrapes all categories in parallel."""
+def useKategroije():
     start_time = time.time()
 
     with requests.Session() as session:
@@ -176,7 +166,7 @@ def scrape_all_categories():
             for future in concurrent.futures.as_completed(futures):
                 future.result()
 
-    print(f"\n🎯 Scraping complete! Total time taken: {time.time() - start_time:.2f} seconds")
+    print(f"\konc, uzel je tolk cajta: {time.time() - start_time:.2f} sekund")
 
 if __name__ == "__main__":
-    scrape_all_categories()
+    useKategroije()
