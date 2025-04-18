@@ -103,10 +103,10 @@ def start_scraper():
             logging.info("Starting new scraping cycle")
             scrape_all()
             logging.info("Scraping cycle completed, sleeping for 1 hour")
-            time.sleep(10)  # Sleep for 10 sec
+            time.sleep(10)
         except Exception as e:
             logging.error(f"Error in scraper: {e}")
-            time.sleep(300)  # Sleep for 5 minutes on error
+            time.sleep(300)
 def check_price_drop(cursor, name, new_price, link, webhook):
     cursor.execute("SELECT price FROM products WHERE link = ?", (link,))
     row = cursor.fetchone()
